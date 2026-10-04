@@ -13,6 +13,12 @@ db.migration(
     "CREATE TABLE IF NOT EXISTS features ("
     "id INTEGER PRIMARY KEY, name TEXT NOT NULL, module TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '')",
 )
+db.migration(
+    "features_002_prep_items",
+    "CREATE TABLE IF NOT EXISTS prep_items ("
+    "id INTEGER PRIMARY KEY, feature_id INTEGER NOT NULL REFERENCES features(id), "
+    "text TEXT NOT NULL, ready INTEGER NOT NULL DEFAULT 0)",
+)
 NAV.append(("/features", "Features"))
 
 
@@ -95,15 +101,64 @@ def add_feature(req: Request) -> Response:
     return redirect(f"/features/{new_id}")
 
 
-@route("GET", "/features/{feature_id}")
-def show_feature(req: Request) -> Response:
-    feature = _load_feature(req.params["feature_id"])
-    if feature is None:
-        return html_response(page("Not found", "<h1>Not found</h1>"), 404)
+def _prep_items(feature_id: int) -> list[str]:
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT text FROM prep_items WHERE feature_id = ? ORDER BY id", (feature_id,)
+        ).fetchall()
+    finally:
+        conn.close()
+    return [row["text"] for row in rows]
+
+
+def _render_feature(feature: sqlite3.Row, error: str = "", status: int = 200) -> Response:
+    items = _prep_items(feature["id"])
+    if items:
+        listing = "<ol>" + "".join(f"<li>{h(text)}</li>" for text in items) + "</ol>"
+    else:
+        listing = "<p>No preparation items yet.</p>"
+    message = f'<p class="error">{h(error)}</p>' if error else ""
     body = (
         f"<h1>{h(feature['name'])}</h1>"
         f"<p>Module: {h(feature['module'])}</p>"
         f'<div class="notes" style="white-space: pre-wrap">{h(feature["notes"])}</div>'
+        "<h2>Preparation</h2>"
+        f"{listing}"
+        f'<form method="post" action="/features/{feature["id"]}/prep">'
+        f"{message}"
+        '<label>Item <input type="text" name="text"></label>'
+        '<button type="submit">Add item</button>'
+        "</form>"
         '<p><a href="/features">Back to features</a></p>'
     )
-    return html_response(page(feature["name"], body))
+    return html_response(page(feature["name"], body), status)
+
+
+def _not_found() -> Response:
+    return html_response(page("Not found", "<h1>Not found</h1>"), 404)
+
+
+@route("GET", "/features/{feature_id}")
+def show_feature(req: Request) -> Response:
+    feature = _load_feature(req.params["feature_id"])
+    if feature is None:
+        return _not_found()
+    return _render_feature(feature)
+
+
+@route("POST", "/features/{feature_id}/prep")
+def add_prep_item(req: Request) -> Response:
+    feature = _load_feature(req.params["feature_id"])
+    if feature is None:
+        return _not_found()
+    text = req.form.get("text", "").strip()
+    if not text:
+        return _render_feature(feature, "Preparation item is required.", 400)
+    conn = db.connect()
+    try:
+        conn.execute("INSERT INTO prep_items (feature_id, text) VALUES (?, ?)", (feature["id"], text))
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect(f"/features/{feature['id']}")

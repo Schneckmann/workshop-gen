@@ -12,6 +12,7 @@ class FeaturesTest(AppTestCase):
         conn = sqlite3.connect(os.environ["APP_DATABASE"])
         try:
             conn.execute("DELETE FROM features")
+            conn.execute("DELETE FROM prep_items")
             conn.commit()
         except sqlite3.OperationalError:
             pass
@@ -155,3 +156,75 @@ class FeaturesTest(AppTestCase):
 
     def test_detail_non_numeric_id_is_404(self):
         self.assertEqual(self.get("/features/abc")[0], 404)
+
+    def prep_count(self):
+        conn = sqlite3.connect(os.environ["APP_DATABASE"])
+        try:
+            return conn.execute("SELECT COUNT(*) FROM prep_items").fetchone()[0]
+        finally:
+            conn.close()
+
+    def add_prep(self, url, text):
+        return self.post_form(url + "/prep", {"text": text})
+
+    def test_detail_renders_preparation_section_and_form(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        body = self.get(url)[2]
+        self.assertIn("<h2>Preparation</h2>", body)
+        self.assertIn(f'<form method="post" action="{url}/prep">', body)
+        self.assertIn('<input type="text" name="text"', body)
+
+    def test_prep_post_redirects_and_lists_item(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        status, headers, _ = self.add_prep(url, "Print sample delivery note")
+        self.assertEqual(status, 303)
+        self.assertEqual(headers["Location"], url)
+        self.assertIn("Print sample delivery note", self.get(url)[2])
+
+    def test_prep_items_keep_order_and_start_unticked(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        self.add_prep(url, "Print sample delivery note")
+        self.add_prep(url, "Create test pallets")
+        body = self.get(url)[2]
+        self.assertLess(body.index("Print sample delivery note"), body.index("Create test pallets"))
+        self.assertNotIn("ready", body)
+
+    def test_prep_items_are_per_feature(self):
+        url_a = self.feature_url("Goods receipt", "Warehouse")
+        url_b = self.feature_url("Invoicing", "Sales")
+        self.add_prep(url_a, "Only for A")
+        self.assertIn("Only for A", self.get(url_a)[2])
+        self.assertNotIn("Only for A", self.get(url_b)[2])
+
+    def test_prep_blank_text_is_400_and_stores_nothing(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        for text in ("", "   "):
+            status, _, body = self.add_prep(url, text)
+            self.assertEqual(status, 400)
+            self.assertIn('<p class="error">Preparation item is required.</p>', body)
+            self.assertIn("<h2>Preparation</h2>", body)
+        self.assertEqual(self.prep_count(), 0)
+
+    def test_prep_missing_text_field_is_400(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        self.assertEqual(self.post_form(url + "/prep", {})[0], 400)
+        self.assertEqual(self.prep_count(), 0)
+
+    def test_prep_unknown_id_is_404_and_stores_nothing(self):
+        self.assertEqual(self.add_prep("/features/999999", "x")[0], 404)
+        self.assertEqual(self.prep_count(), 0)
+
+    def test_prep_non_numeric_id_is_404_and_stores_nothing(self):
+        self.assertEqual(self.add_prep("/features/abc", "x")[0], 404)
+        self.assertEqual(self.prep_count(), 0)
+
+    def test_prep_text_is_escaped(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        self.add_prep(url, "</ul><h1>broken</h1>")
+        body = self.get(url)[2]
+        self.assertIn("&lt;/ul&gt;&lt;h1&gt;broken&lt;/h1&gt;", body)
+        self.assertNotIn("<h1>broken</h1>", body)
+
+    def test_prep_empty_message(self):
+        url = self.feature_url("Goods receipt", "Warehouse")
+        self.assertIn("No preparation items yet.", self.get(url)[2])
