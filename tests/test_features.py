@@ -46,6 +46,15 @@ class FeaturesTest(AppTestCase):
         self.assertEqual(status, 303)
         self.assertRegex(headers["Location"], r"^/features/\d+$")
         self.assertEqual(self.count(), 1)
+        row_id = int(headers["Location"].rsplit("/", 1)[1])
+        conn = sqlite3.connect(os.environ["APP_DATABASE"])
+        try:
+            row = conn.execute(
+                "SELECT name, module, notes FROM features WHERE id = ?", (row_id,)
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row, ("Goods receipt", "Warehouse", NOTES))
 
     def test_list_shows_feature_under_module_with_link(self):
         _, headers, _ = self.add("Goods receipt", "Warehouse", NOTES)
@@ -78,9 +87,11 @@ class FeaturesTest(AppTestCase):
         self.assertEqual(self.count(), 0)
 
     def test_empty_module_rejected(self):
-        status, _, body = self.add("Goods receipt", "")
+        status, _, body = self.add("Goods receipt", "", NOTES)
         self.assertEqual(status, 400)
         self.assertIn('class="error">Module is required.', body)
+        self.assertIn('value="Goods receipt"', body)
+        self.assertIn(NOTES, body)
         self.assertEqual(self.count(), 0)
 
     def test_missing_fields_rejected_not_500(self):
