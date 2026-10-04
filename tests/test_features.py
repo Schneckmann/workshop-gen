@@ -65,6 +65,22 @@ class FeaturesTest(AppTestCase):
         self.assertNotIn("Purchase orders", warehouse)
         self.assertLess(body.index("<h2>Purchasing</h2>"), body.index("<h2>Warehouse</h2>"))
 
+    def test_modules_are_ordered_case_insensitively(self):
+        self.post_form("/features", {"name": "A", "module": "Zebra"})
+        self.post_form("/features", {"name": "B", "module": "apple"})
+        body = self.get("/features")[2]
+        self.assertLess(body.index("<h2>apple</h2>"), body.index("<h2>Zebra</h2>"))
+
+    def test_redirect_id_matches_saved_row(self):
+        _, headers, _ = self.post_form("/features", {"name": "Saved", "module": "Sales", "notes": "kept notes"})
+        feature_id = int(headers["Location"].rsplit("/", 1)[1])
+        conn = db.connect()
+        try:
+            row = conn.execute("SELECT name, module, notes FROM features WHERE id = ?", (feature_id,)).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual((row["name"], row["module"], row["notes"]), ("Saved", "Sales", "kept notes"))
+
     def test_user_values_are_escaped(self):
         self.post_form("/features", {"name": "<script>x</script>", "module": "<b>M</b>"})
         body = self.get("/features")[2]
