@@ -2,84 +2,75 @@
 
 <!--
   Owner: humans only. This file is on the protected list; the factory cannot edit it.
-
-  THIS IS THE ONE FILE NOBODY CAN SHIP FOR YOU. `FACTORY_RULES.md` arrives nearly
-  complete because the discipline that makes an unattended agent safe is the same
-  everywhere. What is being built, and what must never be built, is not.
-
-  Replace every <angle-bracket>. `factory doctor` reports any that remain, and
-  refuses to raise the dial while they do.
-
-  This file is the compression of your spec down to the part an agent has to OBEY.
-  When the product changes, this changes in the same commit -- or the factory keeps
-  faithfully building the old scope and nothing warns you.
+  When the product changes, this changes in the same commit.
 -->
 
-**Derived from:** <path or URL of the PRD / spec this was compressed from>
-**Last reconciled with it:** <YYYY-MM-DD>
+**Derived from:** `PRD.md`
+**Last reconciled with it:** 2026-10-04
 
-## What <PRODUCT> is
+## What Workshop Gen is
 
-<One paragraph, in the language a product manager would use. What it does, for whom,
-and what a user gets out of it. Not the architecture.>
+Workshop Gen turns a consultant's notes on a software feature into a clear, printable
+customer workshop brief. For each feature of a small manufacturer's custom software
+(grouped by module such as Purchasing, Production or Warehouse) the consultant keeps
+free-text notes, a preparation checklist, an ordered demonstration scenario and the
+questions to ask the client, and prints one clean brief page per feature.
 
-<A second short paragraph naming any assumption baked into the design -- single
-tenant, single channel, one deployment -- because those become invariants below.>
+It is a single-user, single-deployment tool: one consultant, no accounts, one SQLite
+database, server-rendered pages on the Python standard library. Those assumptions are
+invariants below.
 
 ## Who it is for
 
-- <the user, and the specific thing they are trying to do>
+- One consultant preparing client workshops, who wants to know at a glance which
+  features are ready to present and to walk in with a printed brief.
 
-<PRODUCT> is not <the nearest adjacent thing people will mistake it for>.
+Workshop Gen is not a project-management tool, a CRM, or a client portal.
 
 ## Core capabilities (in scope)
 
 The factory may accept issues in these areas.
 
-**<Capability area>**
-- <specific capability>
-- <specific capability>
+**Features**
+- Add a feature with a name, a module and free-text notes.
+- List all features grouped by module, each with its preparation progress
+  ("3 of 5 ready"; a feature with no preparation items shows "0 of 0 ready").
 
-**<Capability area>**
-- <specific capability>
+**Brief parts**
+- On a feature's page, add preparation checklist items, demonstration scenario steps
+  (numbered in the order added) and discussion questions for the client.
+- Tick and untick preparation items.
+
+**The brief**
+- A printable brief page per feature: title, module, notes, the checklist with its
+  ticks, the numbered scenario and the questions, with no navigation.
 
 ## Out of scope -- the factory must never build this
 
-<!--
-  THE SECTION THAT EARNS ITS KEEP. This is how an agent recognises that a plausible,
-  well-argued, easy-to-implement feature request is DRIFT rather than a good idea.
-  Without it, every request is arguably in scope, because almost every feature is
-  defensible in isolation -- and the factory will build all of them.
+**People and access**
+- Accounts, logins, roles or per-user data. There is one consultant and no sign-in.
 
-  NEVER, NOT "NOT YET". Everything here is rejected forever, including the quarter it
-  lands on the roadmap. Anything merely deferred belongs in the backlog and must NOT
-  appear here. Copying a spec's non-goals across without doing that sort is the most
-  common way this section quietly becomes wrong.
+**Integrations**
+- A connection to the customer's ERP or any other external system: import, sync or API.
+- AI- or LLM-generated brief content.
 
-  Aim for at least five, and make them things a reasonable person might ask for.
-  Fewer than five means the list is too thin to do any work.
--->
-
-**<Category>**
-- <thing>
-- <thing>
-
-**<Category>**
-- <thing>
+**Workflow beyond the brief**
+- Workshop scheduling: dates, calendars, attendees or invitations.
+- Sending briefs anywhere: email, share links or a client portal.
+- Templates or checklists shared or copied across features.
+- File export (PDF, Word, Markdown). The browser's print of the brief page is the output.
 
 ## Hard invariants -- not tunable by any issue
 
-These are not features. They are properties that define what <PRODUCT> is. The
-factory cannot modify them even if an issue asks nicely, gives a good reason, or
-calls it a bug. Changing one requires a human commit.
-
-1. **<Invariant>.** <Why it exists, in one sentence, so a reader can tell whether an
-   edge case is covered.>
-2. **<Invariant>.**
-3. **The factory cannot modify governance files.** `MISSION.md`, `FACTORY_RULES.md`
-   and the conventions file are the constitution. A PR touching any of them is an
-   automatic reject.
-4. **The factory cannot modify its own judge.** `harness/`, `.factory/locks/` and
+1. **Standard library Python and SQLite only.** The factory's verification runs the app
+   with a plain interpreter; any third-party package makes every check unrunnable.
+2. **Every user value is escaped and every query is parameterized.** Notes and
+   questions are free text typed by a person; they must render as text, never as markup.
+3. **`/health` and `/build-id` keep working.** The factory verifies against them.
+4. **The factory cannot modify governance files.** `MISSION.md`, `FACTORY_RULES.md`
+   and the conventions file (`AGENTS.md`) are the constitution. A PR touching any of
+   them is an automatic reject.
+5. **The factory cannot modify its own judge.** `harness/`, `.factory/locks/` and
    `.factory/holdout/` define what "working" means here. Adding an assertion is
    always welcome; removing or loosening one is a human decision, always.
 
@@ -87,75 +78,49 @@ calls it a bug. Changing one requires a human commit.
 
 Explicitly in scope, so the factory does not reject them as architectural drift:
 
-- <the one architectural change you are willing to let it make, if any>
-- <areas where quality can be improved freely>
+- New named migrations and new feature modules under `app/features/`, following `AGENTS.md`.
+- Print styling for the brief page and general improvements to `app/static/style.css`.
+- Refactors that move shared logic within a feature module into private helpers.
 
 ## Definition of done
 
-Every change the factory ships clears all three gates.
+**Gate 1 -- static checks and tests pass.**
+`python3 -m compileall -q app tests` and `python3 -m unittest discover -s tests`.
 
-**Gate 1 -- static checks and tests pass.** <the exact commands>
-
-**Gate 2 -- <the product-level quality bar>.** <e.g. any new user-facing feature is
-usable without documentation.>
+**Gate 2 -- forms behave.** A successful POST answers a 303 redirect; invalid input
+re-renders the form with a 400 and an error message; an unknown or non-numeric id is a
+404. Never a 500.
 
 **Gate 3 -- the end-to-end path passes as a real user.**
 
-1. <start the app>
-2. <the first user action>
-3. <...>
-4. <the observable result a user would notice>
+1. Start the app with `python -m app.server --port <port>` on an empty database.
+2. Add a feature with a name, a module and notes.
+3. On its page, add preparation items, scenario steps and questions; tick one item.
+4. The brief page shows all of it, steps numbered, without navigation, and the
+   feature list shows the matching "N of M ready".
 
 This runs on every change that touches runnable code, including ones that "seem
 unrelated". It is not optional.
 
 ## Open questions -- decisions nobody has made yet
 
-<!--
-  WORD THIS CAREFULLY, because the obvious wording breaks the factory.
-
-  "Open questions the factory must never answer" makes every issue that touches one
-  escalate -- which contradicts FACTORY_RULES §7, where an unspecified PRODUCT value
-  is decided by the plan node, recorded, and held at the merge. Both files are
-  protected, so the factory cannot reconcile them, and a genuine contradiction
-  between two governance statements is itself on the stop list. The contradiction
-  then escalates the very issues the policy was written to unblock.
-
-  "Open" means I HAVE NOT DECIDED. It does not mean you may not propose.
--->
-
 These are undecided, not forbidden. **The factory may propose an answer to any of
-them**, build against it, and record what it assumed -- the merge is then held for a
+them**, build against it, and record what it assumed. The merge is then held for a
 human, so nothing ships on a guess and nothing stops for one.
 
-- **Q1** <the question, phrased as a decision rather than a topic>
-- **Q2** <...>
-
-**Except these, which do stop the factory** -- they are on the irreversible list
-(`FACTORY_RULES.md` §7.3) rather than open in the ordinary sense:
-
-- <the one about identity, auth, or who may act as whom>
-- <the one about migrating or deleting stored data>
+- **Q1** Should features, items, steps and questions be editable or deletable? (Not in
+  the MVP; the MVP only adds and ticks.)
+- **Q2** In what order are modules listed on the feature list: alphabetical or by
+  first use?
 
 Once answered, an entry moves to `.factory/decisions.md` with its answer and date,
 and stops being asked. **A decision is asked once.**
 
 ## What the factory does NOT own -- permanently human
 
-<!--
-  THE FACTORY'S SCOPE IS SMALLER THAN THE PRODUCT'S, and saying so here is what stops
-  a green gate being read as "the product is good". It never meant that. It means the
-  layer a machine can check is intact.
+- Does the brief READ well in front of a client: wording, order, tone.
+- Does the printed page LOOK right: layout, page breaks, what stands out.
+- Is it UNDERSTANDABLE: can the consultant use it without being told how.
 
-  These are not a backlog and they are not "not yet". They are a different kind of
-  work, and it stays with a person.
--->
-
-- <does it FEEL right -- weight, pacing, difficulty, tone>
-- <does it LOOK right -- layout, hierarchy, whether two states read as different>
-- <is it UNDERSTANDABLE -- can a first-time user work it out without being told>
-
-The factory owns <the domain rules · the data model · the simulation>: the layer
-whose correctness can be asserted. That is usually where most of the risk lives, and
-it is the half that can be defended. The list above is reviewed by a human, on
-purpose, forever.
+The factory owns the data model, the pages and their behaviour: the layer whose
+correctness can be asserted. The list above is reviewed by a human, on purpose, forever.
