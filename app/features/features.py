@@ -28,8 +28,11 @@ def _grouped_features() -> dict[str, list[tuple[int, str]]]:
     return groups
 
 
+SQLITE_MAX_ID = 2**63 - 1
+
+
 def _load_feature(raw_id: str) -> sqlite3.Row | None:
-    if not raw_id.isascii() or not raw_id.isdigit():
+    if not raw_id.isascii() or not raw_id.isdigit() or int(raw_id) > SQLITE_MAX_ID:
         return None
     conn = db.connect()
     try:
