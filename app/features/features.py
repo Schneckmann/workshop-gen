@@ -42,7 +42,7 @@ def _load_feature(raw_id: str) -> sqlite3.Row | None:
     conn = db.connect()
     try:
         return conn.execute(
-            "SELECT id, name, module, notes FROM features WHERE id = ?", (int(raw_id),)
+            "SELECT id, name, module, notes FROM features WHERE id = ?", (int(digits),)
         ).fetchone()
     finally:
         conn.close()

@@ -150,5 +150,8 @@ class FeaturesTest(AppTestCase):
     def test_detail_huge_digit_string_id_is_404(self):
         self.assertEqual(self.get("/features/" + "9" * 5000)[0], 404)
 
+    def test_detail_leading_zero_id_beyond_digit_limit_is_404(self):
+        self.assertEqual(self.get("/features/" + "0" * 5000 + "1")[0], 404)
+
     def test_detail_non_numeric_id_is_404(self):
         self.assertEqual(self.get("/features/abc")[0], 404)
