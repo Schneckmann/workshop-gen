@@ -115,3 +115,34 @@ class FeaturesTest(AppTestCase):
         status, _, body = self.get("/features")
         self.assertEqual(status, 200)
         self.assertIn("No features yet.", body)
+
+    def feature_url(self, *args):
+        return self.add(*args)[1]["Location"]
+
+    def test_detail_shows_name_module_notes_and_back_link(self):
+        status, headers, body = self.get(self.feature_url("Goods receipt", "Warehouse", NOTES))
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", headers["Content-Type"])
+        self.assertIn("<h1>Goods receipt</h1>", body)
+        self.assertIn("Warehouse", body)
+        self.assertIn(NOTES, body)
+        self.assertIn('<a href="/features">', body)
+
+    def test_detail_keeps_line_breaks_in_notes(self):
+        body = self.get(self.feature_url("Goods receipt", "Warehouse", "one\ntwo"))[2]
+        self.assertIn("white-space: pre-wrap", body)
+        self.assertIn("one\ntwo", body)
+
+    def test_detail_escapes_user_values(self):
+        body = self.get(self.feature_url("<i>n</i>", "<b>m</b>", "<script>x</script>"))[2]
+        self.assertIn("&lt;i&gt;n&lt;/i&gt;", body)
+        self.assertIn("&lt;b&gt;m&lt;/b&gt;", body)
+        self.assertIn("&lt;script&gt;x&lt;/script&gt;", body)
+        self.assertNotIn("<script>x", body)
+        self.assertNotIn("<b>m</b>", body)
+
+    def test_detail_unknown_id_is_404(self):
+        self.assertEqual(self.get("/features/999999")[0], 404)
+
+    def test_detail_non_numeric_id_is_404(self):
+        self.assertEqual(self.get("/features/abc")[0], 404)

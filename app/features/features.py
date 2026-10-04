@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 from app import db
 from app.layout import NAV, page
 from app.web import Request, Response, h, html_response, redirect, route
@@ -24,6 +26,18 @@ def _grouped_features() -> dict[str, list[tuple[int, str]]]:
     for row in rows:
         groups.setdefault(row["module"], []).append((row["id"], row["name"]))
     return groups
+
+
+def _load_feature(raw_id: str) -> sqlite3.Row | None:
+    if not raw_id.isascii() or not raw_id.isdigit():
+        return None
+    conn = db.connect()
+    try:
+        return conn.execute(
+            "SELECT id, name, module, notes FROM features WHERE id = ?", (int(raw_id),)
+        ).fetchone()
+    finally:
+        conn.close()
 
 
 def _render(values: dict[str, str], error: str = "", status: int = 200) -> Response:
@@ -71,3 +85,17 @@ def add_feature(req: Request) -> Response:
     finally:
         conn.close()
     return redirect(f"/features/{new_id}")
+
+
+@route("GET", "/features/{feature_id}")
+def show_feature(req: Request) -> Response:
+    feature = _load_feature(req.params["feature_id"])
+    if feature is None:
+        return html_response(page("Not found", "<h1>Not found</h1>"), 404)
+    body = (
+        f"<h1>{h(feature['name'])}</h1>"
+        f"<p>Module: {h(feature['module'])}</p>"
+        f'<div class="notes" style="white-space: pre-wrap">{h(feature["notes"])}</div>'
+        '<p><a href="/features">Back to features</a></p>'
+    )
+    return html_response(page(feature["name"], body))
